@@ -1,0 +1,9 @@
+# Web version (HTML/JS) 
+https://wheretheiss.at/ - used to track iss
+
+# Python version (Tkinter + Skyfield + Visualization)
+skyfield==1.45
+pillow==10.3.0
+requests==2.31.0
+matplotlib==3.8.4
+tk
