@@ -70,11 +70,13 @@ This project was designed as a self-driven research and development exercise. It
 
 ---
 
-## 📸 Screenshots (To Add)
+## 📸 Visuals
 
 - ISS real-time map view with trail
 - Chart views showing altitude/speed over time
 - Desktop Tkinter simulation interface
+- ![image](https://github.com/user-attachments/assets/df5f088d-132f-4190-885c-638043d9c24f)
+
 
 ---
 
