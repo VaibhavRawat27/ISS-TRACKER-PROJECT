@@ -76,6 +76,13 @@ This project was designed as a self-driven research and development exercise. It
 - Chart views showing altitude/speed over time
 - Desktop Tkinter simulation interface
 - ![image](https://github.com/user-attachments/assets/df5f088d-132f-4190-885c-638043d9c24f)
+- ![image](https://github.com/user-attachments/assets/8586d5c5-e539-4b0a-8f4d-166fe75a2cc8)
+- ![image](https://github.com/user-attachments/assets/102fd45e-8623-48e2-b431-4fe3117f8784)
+- Visit website for real tracker - https://iss-tracker-web.web.app/
+- [ISS_Tracker_Report.docx](https://github.com/user-attachments/files/20657858/ISS_Tracker_Report.docx)
+
+
+
 
 
 ---
