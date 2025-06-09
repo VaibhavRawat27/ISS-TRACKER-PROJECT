@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>🚀 ISS Tracker - Continuous Path</title>
+  <style>
+    body {
+      background: #111;
+      color: #7CFC00;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    #mapCanvas {
+      background: #000;
+      border: 2px solid #7CFC00;
+      margin: 20px auto;
+      display: block;
+    }
+    #info {
+      color: #7CFC00;
+    }
+    .chart-container, .insights-card {
+      background: #222;
+      border: 2px solid #7CFC00;
+      margin: 20px auto;
+      padding: 20px;
+      color: #7CFC00;
+      width: 90%;
+      max-width: 1000px;
+    }
+    .chart-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .chart-box {
+      flex: 1;
+      min-width: 450px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="mapCanvas" width="1000" height="500"></canvas>
+<div id="info">Loading ISS data…</div>
+
+<div class="chart-container">
+  <h2>📈 ISS Telemetry Charts</h2>
+  <div class="chart-grid">
+    <div class="chart-box">
+      <h3>Altitude (km)</h3>
+      <canvas id="altitudeChart" width="450" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Speed (km/h)</h3>
+      <canvas id="speedChart" width="450" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="insights-card">
+  <h2>🚀 ISS Insights</h2>
+  <p>The International Space Station orbits Earth about every 90 minutes, traveling at an average speed of 27,600 km/h and an altitude around 400 km. This tracker provides live telemetry every 5 seconds.</p>
+  <ul style="text-align:left; max-width: 800px; margin: auto;">
+    <li>🌍 Real-time tracking of ISS location on map</li>
+    <li>📊 Live charts for altitude and velocity</li>
+    <li>🧭 Reverse-geolocation shows the region below the ISS</li>
+    <li>🔁 Automatically updates every 5 seconds</li>
+    <li>🟡 Yellow trail shows the historical path of ISS</li>
+  </ul>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const MAP_IMG = "https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg";
+const API_URL = "https://api.wheretheiss.at/v1/satellites/25544";
+const INTERVAL = 5000;
+
+const canvas = document.getElementById("mapCanvas");
+const ctx = canvas.getContext("2d");
+const W = canvas.width;
+const H = canvas.height;
+const infoDiv = document.getElementById("info");
+
+let mapImg = new Image();
+mapImg.crossOrigin = "anonymous";
+mapImg.src = MAP_IMG;
+
+let trail = [];
+
+function plotTrail() {
+  ctx.beginPath();
+  ctx.strokeStyle = "yellow";
+  ctx.lineWidth = 2;
+
+  for (let i = 1; i < trail.length; i++) {
+    const prev = trail[i - 1];
+    const curr = trail[i];
+
+    // Handle wraparound by skipping large jumps
+    if (Math.abs(curr.x - prev.x) > W / 2) continue;
+
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(curr.x, curr.y);
+  }
+
+  ctx.stroke();
+}
+
+function plotISS(x, y) {
+  ctx.beginPath();
+  ctx.fillStyle = "red";
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 1;
+  ctx.ellipse(x, y, 6, 6, 0, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.stroke();
+}
+
+async function getRegion(lat, lon) {
+  try {
+    let res = await fetch(`https://geocode.maps.co/reverse?lat=${lat}&lon=${lon}`);
+    if (!res.ok) return "Unknown";
+    let d = await res.json();
+    return (d.address.country || d.address.ocean) || "Unknown";
+  } catch {
+    return "Unknown";
+  }
+}
+
+// Chart setup
+let altitudeData = {
+  labels: [],
+  datasets: [{
+    label: "Altitude (km)",
+    data: [],
+    borderColor: "lime",
+    backgroundColor: "rgba(124,252,0,0.2)",
+    tension: 0.3
+  }]
+};
+
+let speedData = {
+  labels: [],
+  datasets: [{
+    label: "Speed (km/h)",
+    data: [],
+    borderColor: "aqua",
+    backgroundColor: "rgba(0,255,255,0.2)",
+    tension: 0.3
+  }]
+};
+
+const altChart = new Chart(document.getElementById('altitudeChart').getContext('2d'), {
+  type: 'line',
+  data: altitudeData,
+  options: {
+    scales: {
+      x: { ticks: { color: "#7CFC00" } },
+      y: { ticks: { color: "#7CFC00" } }
+    },
+    plugins: { legend: { labels: { color: "#7CFC00" } } }
+  }
+});
+
+const spdChart = new Chart(document.getElementById('speedChart').getContext('2d'), {
+  type: 'line',
+  data: speedData,
+  options: {
+    scales: {
+      x: { ticks: { color: "#7CFC00" } },
+      y: { ticks: { color: "#7CFC00" } }
+    },
+    plugins: { legend: { labels: { color: "#7CFC00" } } }
+  }
+});
+
+async function updateISS() {
+  try {
+    let response = await fetch(API_URL);
+    if (!response.ok) throw new Error("API failed");
+    let data = await response.json();
+
+    const lat = parseFloat(data.latitude);
+    const lon = parseFloat(data.longitude);
+    const alt = parseFloat(data.altitude.toFixed(2));
+    const sp = parseFloat(data.velocity.toFixed(2));
+
+    // Calculate canvas position (with wraparound)
+    const x = ((lon + 180) % 360) * (W / 360);
+    const y = (90 - lat) * (H / 180);
+
+    // Add to trail
+    trail.push({ x, y });
+    if (trail.length > 500) trail.shift(); // Optional: limit trail length
+
+    // Redraw background and all visuals
+    ctx.drawImage(mapImg, 0, 0, W, H);
+    plotTrail();
+    plotISS(x, y);
+
+    const hemi = `${lat >= 0 ? "N" : "S"}/${lon >= 0 ? "E" : "W"}`;
+    const region = await getRegion(lat, lon);
+    const now = new Date().toLocaleTimeString();
+    infoDiv.textContent = `Lat:${lat.toFixed(2)} Lon:${lon.toFixed(2)} | ${hemi} | Alt:${alt}km Sp:${sp}km/h | ${region} @ ${now}`;
+
+    // Update charts
+    const label = now;
+    if (altitudeData.labels.length > 30) {
+      altitudeData.labels.shift();
+      altitudeData.datasets[0].data.shift();
+      speedData.labels.shift();
+      speedData.datasets[0].data.shift();
+    }
+    altitudeData.labels.push(label);
+    altitudeData.datasets[0].data.push(alt);
+    speedData.labels.push(label);
+    speedData.datasets[0].data.push(sp);
+    altChart.update();
+    spdChart.update();
+  } catch (err) {
+    console.error(err);
+    infoDiv.textContent = "Error fetching ISS data";
+  }
+}
+
+mapImg.onload = () => {
+  ctx.drawImage(mapImg, 0, 0, W, H);
+  updateISS();
+  setInterval(updateISS, INTERVAL);
+};
+</script>
+
+</body>
+</html>
